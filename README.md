@@ -2,7 +2,8 @@
 
 [PHP](https://php.net/) is a popular general-purpose scripting language that is popular in web development.
 
-[![Platforms](http://img.shields.io/badge/platforms-ubuntu-lightgrey.svg?style=flat)](#)
+[![Platforms](http://img.shields.io/badge/platforms-ubuntu-lightgrey.svg?style=flat)](#) [![Build Status](https://travis-ci.org/telusdigital/ansible-php.svg?branch=master)](https://travis-ci.org/telusdigital/ansible-php)
+
 
 Tunables
 --------
@@ -40,7 +41,6 @@ Tunables
 Dependencies
 ------------
 * [telusdigital.apt-repository](https://github.com/telusdigital/ansible-apt-repository/)
-* [telusdigital.fluentd](https://github.com/telusdigital/ansible-fluentd/)
 * [telusdigital.logrotate](https://github.com/telusdigital/ansible-logrotate/)
 
 Example Playbook
@@ -62,5 +62,6 @@ Contributors
 * [Chris Olstrom](https://colstrom.github.io/) | [e-mail](mailto:chris@olstrom.com) | [Twitter](https://twitter.com/ChrisOlstrom)
 * Aaron Pederson
 * Ben Visser
+* Nikki
 * Justin Scott
 * Steven Harradine

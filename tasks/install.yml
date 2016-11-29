@@ -2,7 +2,7 @@
 - name: Install Packages | apt
   apt:
     state: latest
-    pkg: "{{ item }}"
+    name: "{{ item }}"
   with_items:
     - "{{ 'php5-fpm' if php_fpm else 'php5-cli' }}"
   tags:
@@ -12,8 +12,17 @@
 - name: Install Packages | apt
   apt:
     state: latest
-    pkg: "{{ item }}"
-  with_items: php_modules
+    name: "{{ item }}"
+  with_items: '{{ php_modules }}'
+  tags:
+    - software-installation
+    - using-apt
+
+- name: Install php cli | apt
+  apt:
+    state: latest
+    name: "php{{ php_modules_postfix }}-cli"
+  when: php_cli or php_composer
   tags:
     - software-installation
     - using-apt
@@ -21,7 +30,7 @@
 - name: Composer | Download and Compile
   shell: "{{ item }}"
   with_items:
-    - 'curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin'
+    - 'export COMPOSER_HOME=/usr/local/bin && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin'
     - 'mv /usr/local/bin/composer.phar /usr/local/bin/composer'
   args:
     creates: /usr/local/bin/composer
@@ -45,6 +54,7 @@
     - 'gpg --keyserver keyserver.ubuntu.com --recv-keys 0x4AA394086372C20A'
     - 'gpg phpunit.phar.asc'
     - 'mv phpunit.phar /usr/local/bin/phpunit'
+    - 'rm phpunit.phar.asc'
   args:
     creates: /usr/local/bin/phpunit
   when: php_phpunit
@@ -60,10 +70,11 @@
     - phpunit
 
 - name: install phpDocumentor
-  get_url: 
+  get_url:
     url: https://phpdoc.org/phpDocumentor.phar
     dest: /usr/local/bin/phpDocumentor
     mode: 0755
+    validate_certs: "{{ php_documentor_validate_certs }}"
   when: php_documentor
   tags:
     - phpDocumentor
@@ -71,42 +82,83 @@
 - name: Sodium | Install php5-dev | apt
   apt:
     state: latest
-    pkg: php5-dev
+    name: php5-dev
   when: php_sodium
   tags:
     - software-installation
     - using-apt
     - sodium
 
+- name: Sodium | Install php-pear | apt
+  apt:
+    state: latest
+    name: php-pear
+  when: php_sodium
+  tags:
+    - software-installation
+    - using-apt
+    - sodium
+    
+- name: Purge Libsodium
+  apt:
+    state: absent
+    purge: yes
+    name: libsodium13
+  when: php_sodium
+  tags:
+    - sodium
+
 - name: Sodium | Git
   git:
     repo: https://github.com/jedisct1/libsodium
     dest: /tmp/libsodium/
+    version: 1.0.8
   when: php_sodium
   tags:
     - sodium
 
 - name: "Sodium | Update, compile and configure"
-  sudo: yes
+  become: yes
   shell: "{{ item }}"
   with_items:
     - 'cd /tmp/libsodium/ && ./autogen.sh'
     - 'cd /tmp/libsodium/ && ./configure'
     - 'cd /tmp/libsodium/ && make && make check'
     - 'cd /tmp/libsodium/ && make install'
-    - 'echo "extension=libsodium.so" >> /etc/php5/mods-available/libsodium.ini'
-    - 'php5enmod libsodium'
   when: php_sodium
   tags:
     - sodium
 
-- name: Sodium | Install PHP extention
-  sudo: yes
+- name: Sodium | Install PHP extension
+  become: yes
   ignore_errors: yes
-  shell: pecl install channel://pecl.php.net/libsodium-1.0.2
+  shell: "pecl install --force channel://pecl.php.net/libsodium-{{ php_sodium_version }}"
   notify:
-    - Reload Service | nginx
-    - Reload Service | php5-fpm
+    - service | php5-fpm | reloaded
+  when: php_sodium
+  tags:
+    - sodium
+
+- name: "Sodium | touch libsodium.ini"
+  file:
+    state: touch
+    dest: /etc/php5/mods-available/libsodium.ini
+  when: php_sodium
+  tags:
+    - sodium
+
+- name: "Sodium | configure"
+  lineinfile:
+    state: present
+    line: "extension=libsodium.so"
+    dest: /etc/php5/mods-available/libsodium.ini
+  when: php_sodium
+  tags:
+    - sodium
+
+- name: "Sodium | php5enmod libsodium"
+  become: yes
+  shell: "php5enmod libsodium"
   when: php_sodium
   tags:
     - sodium
